@@ -26,7 +26,9 @@ public class GameManager : MonoBehaviour
     [SerializeField] private GameObject[] memoryObjects;
     [SerializeField] private Camera mainCamera;
 
-    [HideInInspector] public GameState gameState;
+    [HideInInspector] public GameState currentState;
+
+    private List<PlaySegment> playSegments;
 
     private void HitTest()
     {
@@ -54,6 +56,15 @@ public class GameManager : MonoBehaviour
     {
         OnHit.AddListener(HitTest);
         OnMiss.AddListener(MissTest);
+
+        // divide the play window into segments
+        playSegments = new List<PlaySegment>();
+        float segmentWidth = (mainCamera.pixelWidth - playWindowBorders.left - playWindowBorders.right)
+            / horizontalSegmentCount;
+        float segmentHeight = (mainCamera.pixelHeight - playWindowBorders.top - playWindowBorders.bottom)
+            / verticalSegmentCount;
+        
+        
     }
 }
 
