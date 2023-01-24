@@ -1,45 +1,88 @@
 using System.Collections;
 using System.Collections.Generic;
+using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.Events;
-
-public enum GameState
-{
-    Preview,
-    Play
-}
+using UnityEngine.SceneManagement;
+using UnityEngine.UI;
+using TMPro;
 
 public class GameManager : MonoBehaviour
 {
     [HideInInspector] public static GameManager instance { get; private set; }
 
-    [Header("Play Window Properties")]
-    [SerializeField] private PlayWindowBorders playWindowBorders;
-    [SerializeField] private int horizontalSegmentCount;
-    [SerializeField] private int verticalSegmentCount;
+    [SerializeField] private int lives = 3;
+    [Tooltip("The time interval between each difficulty increase.")]
+    [SerializeField] private float difficultyRampInterval = 3f;
+    [SerializeField] private KeyCode mainMenuKey = KeyCode.Escape;
+    [SerializeField] private KeyCode restartKey = KeyCode.R;
 
-    [Space(10)]
+    [Space(5)]
 
-    public UnityEvent OnHit;
-    public UnityEvent OnMiss;
-
+    [SerializeField] private GameObject memoryCannonsParent;
     [SerializeField] private GameObject[] memoryObjects;
-    [SerializeField] private Camera mainCamera;
+    [SerializeField] private SpriteRenderer colorMask;
+    [SerializeField] private Heart[] livesUI;
+    [SerializeField] private GameObject gameOverPanel;
+    [SerializeField] private TMP_Text scoreText;
+    [SerializeField] private string menuScene = "Main Menu";
 
-    [HideInInspector] public GameState currentState;
+    [HideInInspector] public UnityEvent OnHit;
+    [HideInInspector] public UnityEvent OnMiss;
+    [HideInInspector] public MemoryType currentMemory;
 
-    private List<PlaySegment> playSegments;
+    private int score;
+    private MemoryCannon[] memoryCannons;
 
-    private void HitTest()
+    public static void ReturnToMenu()
     {
-        Debug.Log("Hit");
+        SceneManager.LoadScene(instance.menuScene);
     }
 
-    private void MissTest()
+    public static void LoadMainScene()
     {
-        Debug.Log("Miss");
+        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
     }
     
+    private void Hit()
+    {
+        score++;
+    }
+
+    private void Miss()
+    {
+        lives--;
+        livesUI[lives].BreakHeart();
+        if (lives <= 0)
+            GameOver();
+    }
+    
+    private void GameOver()
+    {
+        CursorController.instance.isInPlay = false;
+
+        scoreText.text = "Score: " + score;
+        gameOverPanel.SetActive(true);
+    }
+
+    private IEnumerator RampDifficulty()
+    {
+        yield return new WaitForSeconds(difficultyRampInterval);
+
+        // return if the game is over
+        if (!CursorController.instance.isInPlay)
+            yield break;
+
+        // increase difficulty
+        foreach (MemoryCannon cannon in memoryCannons)
+        {
+            if (cannon.maxLaunchInterval > 0.5f)
+                cannon.maxLaunchInterval -= 0.5f;
+            if (cannon.launchForce < 100f)
+                cannon.launchForce += 5f;
+        }
+    }
+
     private void Awake()
     {
         if (instance == null)
@@ -50,36 +93,47 @@ public class GameManager : MonoBehaviour
         {
             Destroy(gameObject);
         }
+
+        memoryCannons = memoryCannonsParent.GetComponentsInChildren<MemoryCannon>();
+        gameOverPanel.SetActive(false);
     }
 
     private void Start()
     {
-        OnHit.AddListener(HitTest);
-        OnMiss.AddListener(MissTest);
+        OnHit.AddListener(Hit);
+        OnMiss.AddListener(Miss);
 
-        // divide the play window into segments
-        playSegments = new List<PlaySegment>();
-        float segmentWidth = (mainCamera.pixelWidth - playWindowBorders.left - playWindowBorders.right)
-            / horizontalSegmentCount;
-        float segmentHeight = (mainCamera.pixelHeight - playWindowBorders.top - playWindowBorders.bottom)
-            / verticalSegmentCount;
-        
-        
+        score = 0;
+
+        // choose a random memory type
+        currentMemory = (MemoryType)Random.Range(0, 4);
+        switch (currentMemory)
+        {
+            case MemoryType.Red:
+                colorMask.color = Color.red;
+                break;
+            case MemoryType.Green:
+                colorMask.color = Color.green;
+                break;
+            case MemoryType.Blue:
+                colorMask.color = Color.blue;
+                break;
+            case MemoryType.Yellow:
+                colorMask.color = Color.yellow;
+                break;
+        }
     }
-}
 
-[System.Serializable]
-public struct PlayWindowBorders
-{
-    public float left;
-    public float right;
-    public float top;
-    public float bottom;
-}
+    private void Update()
+    {
+        if (Input.GetKeyDown(mainMenuKey))
+        {
+            ReturnToMenu();
+        }
 
-public class PlaySegment
-{
-    Vector3 startPos; // bottom left corner of the segment
-    float width;
-    float height;
+        if (Input.GetKeyDown(restartKey))
+        {
+            LoadMainScene();
+        }
+    }
 }
