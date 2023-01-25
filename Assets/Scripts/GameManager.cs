@@ -78,9 +78,16 @@ public class GameManager : MonoBehaviour
         {
             if (cannon.maxLaunchInterval > 0.5f)
                 cannon.maxLaunchInterval -= 0.5f;
-            if (cannon.launchForce < 100f)
+            else
+                cannon.maxLaunchInterval = 0.5f;
+
+            if (cannon.launchForce < 500f)
                 cannon.launchForce += 5f;
+            else
+                cannon.launchForce = 500f;
         }
+
+        StartCoroutine(RampDifficulty());
     }
 
     private void Awake()
